@@ -27,6 +27,7 @@ for (int x = 0; x < ix; x++)
             flagFind.Add((new(x, y), imageColors[x, y]));
 
 List<int> coordsX = flagFind.Select(z => z.Item1.X).Distinct().ToList();
+List<(int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor)> rawPixels = new List<(int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor)>();
 foreach(int x in coordsX)
 {
     List<(Point, Vec3)> yellows = flagFind.FindAll(z => z.Item1.X == x && z.Item2.IsColor(150, ColorType.R, ColorType.G));
@@ -37,23 +38,48 @@ foreach(int x in coordsX)
     int allCount = yellowCount + blueCount;
     int perColor = allCount / 3;
     int extraLastColor = allCount % 3;
-    for(int w = 0; w < perColor; w++)
+    rawPixels.Add((x, yellows, blues, startY, yellowCount, blueCount, allCount, perColor, extraLastColor));
+}
+List<(int, int)> rawOneOfThreeList = rawPixels.Where(z => z.yellowCount > 0 && z.blueCount > 0).Select(z => (z.yellowCount, z.blueCount)).ToList();
+int maxOneOfThree = rawOneOfThreeList.GroupBy(z => z.Item2).ToDictionary(z => z.Key, g => g.Count()).ToList().Select(z => z.Value).Max();
+foreach((int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor) pixel in rawPixels)
+{
+    if((pixel.blueCount + pixel.yellowCount) / 3 > maxOneOfThree)
     {
-        image.SetPixel(x, startY + w, Color.White);
+        for (int w = 0; w < pixel.perColor; w++)
+            image.SetPixel(pixel.x, pixel.startY + w, Color.White);
+        for (int b = pixel.perColor; b < pixel.perColor * 2; b++)
+            image.SetPixel(pixel.x, pixel.startY + b, Color.Blue);
+        for (int r = pixel.perColor * 2; r < pixel.perColor * 3; r++)
+            image.SetPixel(pixel.x, pixel.startY + r, Color.Red);
+        for (int e = 0; e < pixel.extraLastColor + 1; e++)
+            image.SetPixel(pixel.x, pixel.startY + pixel.perColor * 3 + e, Color.Red);
     }
-    for (int b = perColor; b < perColor * 2; b++)
+    else
     {
-        image.SetPixel(x, startY + b, Color.Blue);
+
+        //int count = rawPixels.Find(z => z.x == pixel.x).yellowCount + rawPixels.Find(z => z.x == pixel.x).blueCount;
+        for (int w = 0; w < pixel.perColor; w++)
+            if (flagFind.FindIndex(z => z.Item1.X == pixel.x && z.Item1.Y == pixel.startY + w) != -1)                
+                image.SetPixel(pixel.x, pixel.startY + w, Color.White);
+        for (int b = pixel.perColor; b < pixel.perColor * 2; b++)
+            if (flagFind.FindIndex(z => z.Item1.X == pixel.x && z.Item1.Y == pixel.startY + b) != -1)
+                image.SetPixel(pixel.x, pixel.startY + b, Color.Blue);
+        for (int r = pixel.perColor * 2; r < pixel.perColor * 3; r++)
+            if (flagFind.FindIndex(z => z.Item1.X == pixel.x && z.Item1.Y == pixel.startY + r) != -1)
+                image.SetPixel(pixel.x, pixel.startY + r, Color.Red);
+        /*
+        for (int w = 0; w < (count - maxOneOfThree < 0 ? maxOneOfThree : count - maxOneOfThree); w++)
+            image.SetPixel(pixel.x, pixel.startY + w, Color.White);
+        for (int b = (count - maxOneOfThree < 0 ? maxOneOfThree : count - maxOneOfThree); b < (count - maxOneOfThree * 2 < 0 ? maxOneOfThree : count - maxOneOfThree * 2); b++)
+            image.SetPixel(pixel.x, pixel.startY + b, Color.Blue);
+        for (int r = count - maxOneOfThree * 2; r < (count - maxOneOfThree * 3 < 0 ? maxOneOfThree : count - maxOneOfThree * 3); r++)
+            image.SetPixel(pixel.x, pixel.startY + r, Color.Red);/*
+        for (int e = pixel.perColor * 3; e < pixel.extraLastColor; e++)
+            image.SetPixel(pixel.x, pixel.startY + e, Color.Red);
+        */
     }
-    for (int r = perColor * 2; r < perColor * 3; r++)
-    {
-        image.SetPixel(x, startY + r, Color.Red);
-    }
-    for (int e = 0; e < extraLastColor; e++)
-    {
-        image.SetPixel(x, startY + e, Color.Red);
-    }
-    WriteLine(yellowCount + " - " + blueCount);
+    WriteLine(pixel.yellowCount + " - " + pixel.blueCount);
 }
 
 image.Save("C:\\ucraine.png");
