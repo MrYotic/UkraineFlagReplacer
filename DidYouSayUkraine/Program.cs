@@ -5,7 +5,7 @@ using static System.Drawing.Image;
 int strangeShakal = 1;
 
 WriteLine("Where ukraine flags?");
-Bitmap startImage = ((Bitmap)FromFile("C:\\ukraine.jpg")).CutSize(strangeShakal);
+Bitmap startImage = ((Bitmap)FromFile("C:\\ukraine.png")).CutSize(strangeShakal); // jpg is good
 
 int six = startImage.Width, siy = startImage.Height,
 ix = startImage.Width / strangeShakal, iy = startImage.Height / strangeShakal;
@@ -40,12 +40,11 @@ foreach(int x in coordsX)
     int extraLastColor = allCount % 3;
     rawPixels.Add((x, yellows, blues, startY, yellowCount, blueCount, allCount, perColor, extraLastColor));
 }
-List<(int, int)> rawOneOfThreeList = rawPixels.Where(z => z.yellowCount > 0 && z.blueCount > 0).Select(z => (z.yellowCount, z.blueCount)).ToList();
-int maxOneOfThree = rawOneOfThreeList.GroupBy(z => z.Item2).ToDictionary(z => z.Key, g => g.Count()).ToList().Select(z => z.Value).Max();
-int minY = 0;
-foreach((int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor) pixel in rawPixels)
-{    
-    if((pixel.blueCount + pixel.yellowCount) / 3 > maxOneOfThree)
+int maxOneOfThree = rawPixels.Select(z => z.blueCount + z.yellowCount).Max();
+foreach ((int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor) pixel in rawPixels)
+{
+    //WriteLine((pixel.blueCount + pixel.yellowCount) + " " + (pixel.blueCount + pixel.yellowCount) / 3 + " " + maxOneOfThree);
+    if((pixel.blueCount + pixel.yellowCount) + maxOneOfThree / 3 >= maxOneOfThree && pixel.blueCount > 0 && pixel.yellowCount > 0)
     {
         for (int w = 0; w < pixel.perColor; w++)
             image.SetPixel(pixel.x, pixel.startY + w, Color.White);
@@ -55,7 +54,6 @@ foreach((int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int star
             image.SetPixel(pixel.x, pixel.startY + r, Color.Red);
         for (int e = 0; e < pixel.extraLastColor + 1; e++)
             image.SetPixel(pixel.x, pixel.startY + pixel.perColor * 3 + e, Color.Red);
-        if (pixel.startY < minY) minY = pixel.startY;
     }
     else
     {
@@ -64,19 +62,18 @@ foreach((int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int star
             List<int> yCoords = z.yellows.Concat(z.blues).Select(z => z.Item1.Y).ToList();
             yCoords.ForEach(x =>
             {
-                if(x - pixel.startY <= maxOneOfThree)
+                if(x - pixel.startY <= maxOneOfThree / 3) 
                     image.SetPixel(pixel.x, x, Color.White);
-                else if(x - pixel.startY <= maxOneOfThree * 2)
+                else if(x - pixel.startY <= maxOneOfThree / 3 * 2)
                     image.SetPixel(pixel.x, x, Color.Blue);
-                else
-                    image.SetPixel(pixel.x, x, Color.Red);
+                else image.SetPixel(pixel.x, x, Color.Red);
             });
         });
-    }
-    WriteLine(pixel.yellowCount + " - " + pixel.blueCount);
+    }    
 }
 
 image.Save("C:\\ucraine.png");
+WriteLine("End");
 
 void ImageShakaling()
 {
