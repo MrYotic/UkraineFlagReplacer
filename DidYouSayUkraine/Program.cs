@@ -5,7 +5,7 @@ using static System.Drawing.Image;
 int strangeShakal = 1;
 
 WriteLine("Where ukraine flags?");
-Bitmap startImage = ((Bitmap)FromFile("C:\\ukraine.png")).CutSize(strangeShakal); // jpg is good
+Bitmap startImage = ((Bitmap)FromFile("C:\\ukraine.jpg")).CutSize(strangeShakal); // jpg is good
 
 int six = startImage.Width, siy = startImage.Height,
 ix = startImage.Width / strangeShakal, iy = startImage.Height / strangeShakal;
@@ -19,19 +19,19 @@ for (int x = 0; x < image.Width; x++)
     for (int y = 0; y < image.Height; y++)
         image.SetPixel(x, y, imageColors[x, y].ToColor());
 
-List<(Point, Vec3)> flagFind = new List<(Point, Vec3)>();
+List<(Point, Vec3, Vec3)> flagFind = new List<(Point, Vec3, Vec3)>();
 
 for (int x = 0; x < ix; x++)
     for (int y = 0; y < iy; y++)
         if (imageColors[x, y].IsColor(200, ColorType.B) || imageColors[x, y].IsColor(200, ColorType.R, ColorType.G))
-            flagFind.Add((new(x, y), imageColors[x, y]));
+            flagFind.Add((new(x, y), imageColors[x, y], imageColors[x, y].IsColor(200, ColorType.B) ? imageColors[x, y].GetDiff(new Vec3(0, 0, 255)) : imageColors[x, y].GetDiff(new Vec3(255, 255, 0))));
 
 List<int> coordsX = flagFind.Select(z => z.Item1.X).Distinct().ToList();
-List<(int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor)> rawPixels = new List<(int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor)>();
+List<(int x, List<(Point, Vec3, Vec3)> yellows, List<(Point, Vec3, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor)> rawPixels = new List<(int x, List<(Point, Vec3, Vec3)> yellows, List<(Point, Vec3, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor)>();
 foreach(int x in coordsX)
 {
-    List<(Point, Vec3)> yellows = flagFind.FindAll(z => z.Item1.X == x && z.Item2.IsColor(200, ColorType.R, ColorType.G));
-    List<(Point, Vec3)> blues = flagFind.FindAll(z => z.Item1.X == x && z.Item2.IsColor(200, ColorType.B));
+    List<(Point, Vec3, Vec3)> yellows = flagFind.FindAll(z => z.Item1.X == x && z.Item2.IsColor(200, ColorType.R, ColorType.G));
+    List<(Point, Vec3, Vec3)> blues = flagFind.FindAll(z => z.Item1.X == x && z.Item2.IsColor(200, ColorType.B));
     int startY = flagFind.FindAll(z => z.Item1.X == x && (z.Item2.IsColor(200, ColorType.R, ColorType.G) || z.Item2.IsColor(200, ColorType.B))).OrderBy(z => z.Item1.Y).First().Item1.Y;
     int yellowCount = yellows.Count;
     int blueCount = blues.Count;
@@ -41,34 +41,33 @@ foreach(int x in coordsX)
     rawPixels.Add((x, yellows, blues, startY, yellowCount, blueCount, allCount, perColor, extraLastColor));
 }
 int maxOneOfThree = rawPixels.Select(z => z.blueCount + z.yellowCount).Max();
-foreach ((int x, List<(Point, Vec3)> yellows, List<(Point, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor) pixel in rawPixels)
+foreach ((int x, List<(Point, Vec3, Vec3)> yellows, List<(Point, Vec3, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor) pixel in rawPixels)
 {
-    //WriteLine((pixel.blueCount + pixel.yellowCount) + " " + (pixel.blueCount + pixel.yellowCount) / 3 + " " + maxOneOfThree);
     if((pixel.blueCount + pixel.yellowCount) + maxOneOfThree / 3 >= maxOneOfThree && pixel.blueCount > 0 && pixel.yellowCount > 0)
     {
         for (int w = 0; w < pixel.perColor; w++)
-            image.SetPixel(pixel.x, pixel.startY + w, Color.White);
+            image.SetPixel(pixel.x, pixel.startY + w, Color.White.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, pixel.startY + w)).Item3));
         for (int b = pixel.perColor; b < pixel.perColor * 2; b++)
-            image.SetPixel(pixel.x, pixel.startY + b, Color.Blue);
+            image.SetPixel(pixel.x, pixel.startY + b, Color.Blue.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, pixel.startY + b)).Item3));
         for (int r = pixel.perColor * 2; r < pixel.perColor * 3; r++)
-            image.SetPixel(pixel.x, pixel.startY + r, Color.Red);
+            image.SetPixel(pixel.x, pixel.startY + r, Color.Red.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, pixel.startY + r)).Item3));
         for (int e = 0; e < pixel.extraLastColor + 1; e++)
-            image.SetPixel(pixel.x, pixel.startY + pixel.perColor * 3 + e, Color.Red);
+            image.SetPixel(pixel.x, pixel.startY + pixel.perColor * 3 + e, Color.Red.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, pixel.startY + e)).Item3));
     }
     else
     {
-        rawPixels.FindAll(z => z.x == pixel.x).ForEach(z => 
+        foreach ((int x, List<(Point, Vec3, Vec3)> yellows, List<(Point, Vec3, Vec3)> blues, int startY, int yellowCount, int blueCount, int allCount, int perColor, int extraLastColor) z in rawPixels.FindAll(z => z.x == pixel.x))
         {
-            List<int> yCoords = z.yellows.Concat(z.blues).Select(z => z.Item1.Y).ToList();
-            yCoords.ForEach(x =>
+            foreach(int x in z.yellows.Concat(z.blues).Select(z => z.Item1.Y).ToList())
             {
-                if(x - pixel.startY <= maxOneOfThree / 3) 
-                    image.SetPixel(pixel.x, x, Color.White);
+                //Vec3 test = flagFind.Find(z => z.Item1 == new Point(pixel.x, x)).Item3;
+                if (x - pixel.startY <= maxOneOfThree / 3) 
+                    image.SetPixel(pixel.x, x, Color.White.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, x)).Item3));
                 else if(x - pixel.startY <= maxOneOfThree / 3 * 2)
-                    image.SetPixel(pixel.x, x, Color.Blue);
-                else image.SetPixel(pixel.x, x, Color.Red);
-            });
-        });
+                    image.SetPixel(pixel.x, x, Color.Blue.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, x)).Item3));
+                else image.SetPixel(pixel.x, x, Color.Red.Minus(flagFind.Find(z => z.Item1 == new Point(pixel.x, x)).Item3));
+            }
+        }
     }    
 }
 
@@ -126,6 +125,8 @@ static class Static
     public static Vec3 Abs(this Vec3 color) => new(Math.Abs(color.R), Math.Abs(color.G), Math.Abs(color.B), color.Step);
     public static float Sum(this Vec3 color) => color.R + color.G + color.B; 
     public static Color ToColor(this Vec3 color) => Color.FromArgb((int)color.R, (int)color.G, (int)color.B);
+    public static Color Minus(this Color color, Vec3 minus) => new Vec3((color.R - minus.R).IfNotByte(), (color.G - minus.G).IfNotByte(), (color.B - minus.B).IfNotByte()).ToColor();
+    public static Vec3 GetDiff(this Vec3 color, Vec3 color2) => color - color2;
     public static Bitmap CutSize(this Bitmap bitmap, int size)
     {
         Bitmap newBitmap = new Bitmap(bitmap.Width - bitmap.Width % size, bitmap.Height - bitmap.Height % size);
@@ -134,6 +135,8 @@ static class Static
                 newBitmap.SetPixel(x, y, bitmap.GetPixel(x, y));
         return newBitmap;
     }
+    public static float IfZero(this float num) => num < 0 ? 0 : num;
+    public static float IfNotByte(this float num) => num > 255 ? 255 : num.IfZero();
     public static bool IsColor(this Vec3 color, int extra, params ColorType[] type)
     {
         Vec3 perfectColor = Color.FromArgb(type.Contains(ColorType.R) ? 255 : 0, type.Contains(ColorType.G) ? 255 : 0, type.Contains(ColorType.B) ? 255 : 0).ToVec3();
@@ -141,5 +144,6 @@ static class Static
         int wrong = (int)wrongColor.Sum();
         return wrong < extra; 
     }
+
 }
 enum ColorType { R, G, B }
